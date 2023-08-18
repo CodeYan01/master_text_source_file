@@ -17,7 +17,7 @@ def script_properties():
     # global obs_props
     props = obs.obs_properties_create()
     obs.obs_properties_add_path(props, "file_path", "File Path: ", obs.OBS_PATH_FILE, "*.txt", "")
-    obs.obs_properties_add_int(props, "file_check_delay", "Check delay (ms):", 50, 1000, 100)
+    obs.obs_properties_add_int(props, "file_check_delay", "Check delay (ms):", 50, 2**31-1, 100)
 
     return props
 
