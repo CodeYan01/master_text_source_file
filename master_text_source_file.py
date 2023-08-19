@@ -92,7 +92,9 @@ def join_text_lines(lines: list):
     return "\n".join(lines)
 
 def set_source_text(source, text):
-    source_settings = obs.obs_data_create()
-    obs.obs_data_set_string(source_settings, "text", text)
-    obs.obs_source_update(source, source_settings)
+    source_settings = obs.obs_source_get_settings(source)
+    old_text = obs.obs_data_get_string(source_settings, "text")
+    if text != old_text:
+        obs.obs_data_set_string(source_settings, "text", text)
+        obs.obs_source_update(source, source_settings)
     obs.obs_data_release(source_settings)
