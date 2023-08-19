@@ -14,6 +14,35 @@ previous_mtime = None
 previous_missing_sources = set()
 source_name_re = re.compile(r"^\s*<(.*)>\s*$")
 update_when_changed = False
+loaded = False
+
+def script_load(settings):
+    global loaded
+
+    # If there's a current scene, obs has already loaded
+    # Query preview first, because I experienced a blank Program scene in studio
+    # mode that I haven't confirmed in code yet.
+    scene = obs.obs_frontend_get_current_preview_scene() or obs.obs_frontend_get_current_scene()
+    if scene:
+        loaded = True
+        obs.obs_source_release(scene)
+    else:
+        obs.obs_frontend_add_event_callback(frontend_event_cb)
+
+        # not sure if obs reloads module upon scene collection change. if it
+        # doesn't, global variables won't be reinitialized
+        loaded = False
+
+def frontend_event_cb(event):
+    global loaded
+
+    # Check both, because if scene collection changed, finished loading is not
+    # called anymore
+    if event == obs.OBS_FRONTEND_EVENT_FINISHED_LOADING or event == obs.OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED:
+        loaded = True
+        read_file()
+        obs.timer_add(read_file, file_check_delay)
+        obs.remove_current_callback()
 
 def script_properties():
     """Adds script options that the user can edit"""
@@ -44,11 +73,13 @@ def script_update(settings):
 
     if file_path != new_file_path:
         file_path = new_file_path
-        read_file()
+        if loaded:
+            read_file()
     if file_check_delay != new_file_check_delay and new_file_check_delay > 0:
         file_check_delay = new_file_check_delay
-        obs.timer_remove(read_file)
-        obs.timer_add(read_file, file_check_delay)
+        if loaded:
+            obs.timer_remove(read_file)
+            obs.timer_add(read_file, file_check_delay)
 
 def read_file():
     _read_file(file_path)
@@ -88,6 +119,8 @@ def _read_file(file_path: str):
                     source_name = match[1]
                     source = obs.obs_get_source_by_name(source_name)
                     if source is None:
+                        # Keep track of missing sources, so we don't print the
+                        # same missing source in a row
                         if source_name not in previous_missing_sources:
                             print(f"Source '{source_name}' not found.")
                             previous_missing_sources.add(source_name)
@@ -97,10 +130,11 @@ def _read_file(file_path: str):
                 else:
                     text_lines.append(line.rstrip('\n'))
 
-            # For last scene
+            # For last source
             if source:
                 set_source_text(source, join_text_lines(text_lines))
                 obs.obs_source_release(source)
+
     except FileNotFoundError as e:
         # Print once per missing file to avoid spam
         if previous_missing_file != file_path:
