@@ -21,7 +21,29 @@ before the next source name is allowed, but extra blank lines will not be remove
 It is also fine if you do not want to put a blank line before the next source.
 Source names that are used should be text sources.
 
-An example.txt is provided.
+Here's an example of what the text file may look like, having "Display Name", "Description", "Additional", and "Greeting" as text source names:
+```
+<Display Name>
+CodeYan
+
+<Description>
+This is a Python script that automates updating multiple text source files using
+only one file.
+
+Source names should be enclosed in angle brackets (e.g. <My Text Source>) on a line without any other characters.
+As you can see, even if I put <My Text Source> in the contents, it will not be
+detected as a source name. It is space-sensitive, so if your source has spaces at the start or end, be sure to include them.
+
+If I put 3 blank lines before the next source, only 2 blank lines will be included.
+
+
+
+<Additional>
+It is also fine to not have blank lines before the next source name if you prefer.
+<Greeting>
+Thank you!
+
+```
 
 # Contact Me
 Although there is a discussion tab in these forums, I would see your message
