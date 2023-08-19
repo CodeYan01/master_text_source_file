@@ -27,6 +27,7 @@ def script_properties():
 
 def script_defaults(settings):
     obs.obs_data_set_default_int(settings, "file_check_delay", 1000)
+    obs.obs_data_set_default_bool(settings, "update_when_changed", True)
 
 def script_update(settings):
     global file_path
