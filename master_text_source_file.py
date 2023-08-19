@@ -2,6 +2,7 @@
 @author: CodeYan
 """
 import obspython as obs
+import os
 import re
 
 # Script Data
@@ -9,8 +10,10 @@ file_path = ""
 file_check_delay = 0
 previous_missing_file = "" # If the file is still not found, don't log it again
 previous_found_file = ""
+previous_mtime = None
 previous_missing_sources = set()
 source_name_re = re.compile(r"^\s*<(.*)>\s*$")
+update_when_changed = False
 
 def script_properties():
     """Adds script options that the user can edit"""
@@ -18,6 +21,7 @@ def script_properties():
     props = obs.obs_properties_create()
     obs.obs_properties_add_path(props, "file_path", "File Path: ", obs.OBS_PATH_FILE, "*.txt", "")
     obs.obs_properties_add_int(props, "file_check_delay", "Check delay (ms):", 50, 2**31-1, 100)
+    obs.obs_properties_add_bool(props, "update_when_changed", "Only update sources when file is modified")
 
     return props
 
@@ -27,8 +31,15 @@ def script_defaults(settings):
 def script_update(settings):
     global file_path
     global file_check_delay
+    global update_when_changed
+    global previous_mtime
+
     new_file_path = obs.obs_data_get_string(settings, "file_path")
     new_file_check_delay = obs.obs_data_get_int(settings, "file_check_delay")
+    update_when_changed = obs.obs_data_get_bool(settings, "update_when_changed")
+
+    if not update_when_changed:
+        previous_mtime = None
 
     if file_path != new_file_path:
         file_path = new_file_path
@@ -44,10 +55,17 @@ def read_file():
 def _read_file(file_path: str):
     global previous_missing_file
     global previous_found_file
+    global previous_mtime
 
     if not file_path:
         return
     try:
+        if update_when_changed:
+            mtime = os.stat(file_path).st_mtime
+            if mtime == previous_mtime:
+                return
+            previous_mtime = mtime
+
         with open(file_path, mode='r') as f:
             previous_missing_file = ""
             if previous_found_file != file_path:
@@ -59,6 +77,9 @@ def _read_file(file_path: str):
                 match = source_name_re.match(line)
                 if match:
                     if source:
+                        # Text sources are only updated once another source name
+                        # is read, as the lines are accumulated in text_lines
+                        # first.
                         set_source_text(source, join_text_lines(text_lines))
                         obs.obs_source_release(source)
                     text_lines = []
@@ -85,6 +106,7 @@ def _read_file(file_path: str):
             print(e)
             previous_missing_file = file_path
             previous_found_file = ""
+            previous_mtime = None
 
 def join_text_lines(lines: list):
     if len(lines) > 0 and lines[-1] == '':
